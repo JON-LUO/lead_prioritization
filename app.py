@@ -22,7 +22,7 @@ def show_home():
         df.index = df.index + 1  # For table view
 
         st.subheader("Lead History")
-        columns_to_show = [col for col in df.columns if col not in ["company_summary", "snapshot_summary"]]
+        columns_to_show = [col for col in df.columns if col not in ["company_summary", "snapshot_summary", "priority_score"]]
         st.dataframe(df[columns_to_show])
 
         # Selection for more details
@@ -82,6 +82,7 @@ def show_open_lead_page():
             selected_row = df[df["company_name"] == selected_company].iloc[0]
             st.dataframe(selected_row[columns_to_show].astype(str))
             st.markdown(f"**ID:** {selected_row['id']}")
+            st.markdown(f"**Priority Score:** {selected_row['priority_score']}")
             # st.markdown(f"**Summary:** {selected_row['company_summary']}")
             render_text(f"**Summary:** <br>{selected_row['company_summary']}")
             st.markdown("\n")
@@ -109,38 +110,42 @@ def show_agent_page():
 def main():
     st.set_page_config(page_title="Lead Scoring Demo", layout="wide")
 
-    ## Load snapshots dataframe
-    file_path = 'snapshots.csv'  # Change this path
-    df_snapshots = pd.read_csv(file_path)
-    df_snapshots = df_snapshots.drop(['mock_source', 'favorability'], axis=1)
-    df_snapshots['embedding'] = df_snapshots['embedding'].apply(lambda x: np.array(x.strip('[]').split(), dtype=float))   # Get embedding into numpy array form
+    if "data_snapshots" not in st.session_state:
+        ## Load snapshots dataframe
+        file_path = 'snapshots.csv'  # Change this path
+        df_snapshots = pd.read_csv(file_path)
+        df_snapshots = df_snapshots.drop(['mock_source', 'favorability'], axis=1)
+        df_snapshots['embedding'] = df_snapshots['embedding'].apply(lambda x: np.array(x.strip('[]').split(), dtype=float))   # Get embedding into numpy array form
 
-    ## Create leads dataframe
-    df_leads = df_snapshots.groupby('id').agg({
-        'company_name': 'first',
-        'industry': 'first',
-        'status': 'first',
-        'converted': 'first',
-        'open_date': 'first',
-        'close_date': 'first',
-        'company_summary': 'first',
-        'cyber_investment': 'last',
-        'competitor_solution': 'last',
-        'renewal_date': 'last',
-        'deal_value': 'last',
-        'snapshot_date': 'last',
-        'snapshot_seq': 'last',
-        'decision_maker_level': 'last',
-        'lead_stage': 'last',
-        'downloads': 'sum',
-        'website_visits': 'sum',
-        'interactions': 'sum',
-        'snapshot_summary': 'last'
-    }).reset_index()
+        ## Create leads dataframe
+        df_leads = df_snapshots.groupby('id').agg({
+            'company_name': 'first',
+            'industry': 'first',
+            'status': 'first',
+            'converted': 'first',
+            'open_date': 'first',
+            'close_date': 'first',
+            'company_summary': 'first',
+            'cyber_investment': 'last',
+            'competitor_solution': 'last',
+            'renewal_date': 'last',
+            'deal_value': 'last',
+            'snapshot_date': 'last',
+            'snapshot_seq': 'last',
+            'decision_maker_level': 'last',
+            'lead_stage': 'last',
+            'downloads': 'sum',
+            'website_visits': 'sum',
+            'interactions': 'sum',
+            'snapshot_summary': 'last'
+        }).reset_index()
+        # Initialize column for priority score
+        df_leads['priority_score'] = None
+        df_leads = df_leads[['priority_score'] + df_leads.columns[:-1].tolist()]
 
-    # Save to session state
-    st.session_state["data_snapshots"] = df_snapshots
-    st.session_state["data_leads"] = df_leads
+        # Save to session state
+        st.session_state["data_snapshots"] = df_snapshots
+        st.session_state["data_leads"] = df_leads
 
     # Tabs for different sections
     tabs =  ["📊 Home", "📋 Open Leads", "💬 Agent"]

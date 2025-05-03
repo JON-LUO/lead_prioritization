@@ -4,6 +4,7 @@ import pandas as pd
 import matplotlib.pyplot as plt
 from sklearn.metrics.pairwise import cosine_similarity
 import openai
+import re
 
 
 from visuals import visualize_stage_timeline, render_text, visualize_comparable
@@ -156,7 +157,7 @@ def score_lead(lead_id):
 
     prompt = f"""
 You are a B2B sales expert evaluating the quality of a sales lead using both observed historical data and your general knowledge of sales strategy, buying cycles, and lead behavior patterns.
-You are evaluating the quality of a sales lead based on how similar historical leads performed.
+You are evaluating the quality of a sales lead based on how similar historical leads performed. Assume today is May 1, 2025.
 
 Subject Lead Summary:
 {subject_summary}
@@ -185,7 +186,7 @@ Ratings:
 3. Pipeline Progress Potential: 
 
 Provide a short explanation for each rating. 
-Then, provide an overall **Lead Priority Score** from 0–100 that reflects how much attention this lead deserves.
+Then, provide an overall **Lead Priority Score**, an integer from 1–100 that reflects how much attention this lead deserves. Make sure the response is in the format: 'Lead Priority Score: x' where x is an integer value.
 
 Provide speculative recommendations or ideas to increase the likelihood of success for this lead. These can include engagement strategies, messaging adjustments, or other actions. Draw from both comparable patterns and general sales expertise.
 """.strip()
@@ -207,6 +208,18 @@ Provide speculative recommendations or ideas to increase the likelihood of succe
     render_text(f"**Scoring Lead**: <br>{response}")
     st.markdown("\n")
 
+    # Get score and save it
+    match = re.search(r"Lead Priority Score:\s*(\d+)", response)
+
+    # If a match is found, convert the number to an integer and store it
+    if match:
+        priority_score = int(match.group(1))  # Extracted number as integer
+    else:
+        print("No valid score found.")
+    # Update table
+    df_leads = st.session_state["data_leads"]
+    df_leads.loc[df_leads['id'] == lead_id, 'priority_score'] = priority_score
+    st.session_state["data_leads"] = df_leads
 
 ########################################################
 ########################################################
